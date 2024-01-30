@@ -1,0 +1,363 @@
+---
+title: "CS_171_Final"
+author: "Samuel_Chiu"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Final
+
+Welcome to your final! I want you to have fun and show off your skills. To provide you with the capacity to enjoy putting your skills to use I am giving you freedom. No questions, just the chance to experiment and create! There are a few prompts below, so have at it and I hope you enjoyed the class and continue refining your coding skills.  
+
+## Saving and submitting your final
+
+Please be sure to save frequently to avoid losing your work. Also, **make sure** you upload the correct and latest .rmd file. I also challenge you to *knit* your markdown into an HTML file and upload that along with the .rmd file. *Remember to avoid using functions like `View()` or `install.packages` that will not allow a coding chunk to knit.*
+
+## Finding data
+
+Find any  dataset you would like. **Please explain *why* you selected these data and why you find the dataset interesting**. 
+
+**BE SURE TO SHOW ALL THE CODE AND UPLOAD ALL DATA FILES WHEN YOU SUBMIT YOUR MIDTERM!!**
+
+## Let's do this!!
+
+Last reminder for this: **show ALL the code for your work, and upload all data files you use for this exam so I can check your code** 
+
+Upload your .rmd file, your HTML file, and all data files through Laulima by the exam deadline. 
+
+## Part 1: Stats! 
+
+Use descriptive statistics to examine your data. Show me the distributions and characteristics of the data. Use this information to run a few statistical tests to answer a question(s) you find interesting from the dataset. **Please show all your work, and use explain below *why* you ran these tests, what the results mean, and why the findings are meaningful**
+ 
+ 
+
+```{r}
+
+# SHOW ALL OF YOUR CODE!!!!
+
+
+
+
+Kani <- read.csv("mfsnowcrab.csv")
+
+
+library(dplyr)  # data manipulation, inc. bind_rows() and filter()
+library(ggplot2) # visualization
+library(ggthemes) # visualization
+library(ggpubr)
+library(rcompanion)
+library(multcompView)
+library(psych)
+library(rstatix)
+library(patchwork)
+library(stats)
+library(agricolae)
+library(RColorBrewer)
+
+#--------------------------------------------------------------------------------
+```
+
+```{r}
+
+#I decided to use the mfsnowcrab dataframe for my final. It shows the geospatial data of snowcrab collection in the bering sea from 1975 to 2018. Looking at the dataframe I was interested in 3 variables specifically in year, haul, and bottom depth. Starting off I plotted the dataframe to see if there was any obvious correlation and after waiting 2 minutes for R to load the dataframe I saw nothing very striking. After that I decided to continue with the 3 variables I was interested in and ran normality tests on haul and depth for each year. The Subsequent 
+
+
+#plot(Kani)
+
+
+hist(Kani$haul, main = "Histogram of Snowcrab Haul", xlab = "Haul") 
+
+abline(v = mean(Kani$haul), col = "red")
+
+abline(v = median(Kani$haul), col = "blue")
+
+
+
+hist(Kani$bottom_depth)
+
+abline(v = mean(Kani$bottom_depth), col = "red")
+
+abline(v = median(Kani$bottom_depth), col = "blue")
+
+
+
+
+ggqqplot(Kani$haul, main = "QQ Plot of Snowcrab Haul")
+
+ggdensity(Kani$haul, main = "Density Plot of Snowcrab Haul", xlab = "Haul")
+  
+
+
+ggqqplot(Kani$bottom_depth, main = "QQ Plot of Snowcrab Bottom Depth")
+
+ggdensity(Kani$bottom_depth, main = "Density Plot of Snowcrab Bottom Depth", xlab = "Haul")
+  
+
+
+shapiro_test_by_year_depth <- function(Kani, year, bottom_depth) {
+  Kani %>%
+    group_by({{ year }}) %>%
+    summarise(shapiro_p_value = shapiro.test({{ bottom_depth }})$p.value)}
+
+
+shapiro_test_by_year_haul <- function(Kani, year, haul) {
+  Kani %>%
+    group_by({{ year }}) %>%
+    summarise(shapiro_p_value = shapiro.test({{ haul }})$p.value)}
+
+
+
+Kani %>%
+  shapiro_test_by_year_haul(year, haul)
+
+
+Kani%>%
+  shapiro_test_by_year_depth(year, bottom_depth)
+
+#--------------------------------------------------------------------------------
+```
+
+```{r}
+
+#Finding that the data was not normally distributed I decided that I was going to run A kruskal wallace analysis of year for both haul and depth. This resulted in significant p-values. The Significant p-values indicate that there is a statistically significant difference in haul and bottom depth between the years. Knowing this I created letter groupings but resulted with too many letter groupings making it hard to work with. After that I pivoted and wanted to see what a regression analysis would look like with the variables as well. 
+
+
+
+KaniKruskalhaul <- kruskal.test(haul ~ year, data = Kani)
+
+print(KaniKruskalhaul)
+
+pw.haul_groups <- kruskal(Kani$haul, Kani$year, console = TRUE)
+
+pw.haul_groups
+
+
+
+
+KaniKruskalDepth <- kruskal.test(bottom_depth ~ year, data = Kani)
+
+print(KaniKruskalDepth)
+
+pw.depth_groups <- kruskal(Kani$bottom_depth, Kani$year, console = TRUE)
+
+pw.depth_groups
+
+
+
+#--------------------------------------------------------------------------------
+```
+
+```{r}
+
+
+cordepth.haul = cor.test(Kani$bottom_depth, Kani$haul, method = "spearman")
+
+cordepth.haul
+
+
+depth.haul.model <- lm(haul ~ bottom_depth, data = Kani)
+
+summary(depth.haul.model)
+
+plot(Kani$bottom_depth, Kani$haul)
+
+
+
+plot(Kani$year, Kani$bottom_depth)
+
+
+#Running a regression analysis with haul and bottom depth we get a positive rho of .42 with a p-value less than .001 . This means that there is a correlation of .42 between these variables. However, analyzing the correlation we get see that the adjusted R2 is equal to .14 . Looking at these indicate that a linear model can only predict .14% of variation in the distribution based on this adjusted R2 value. In a study I would probably throw out this information as it is. Looking at the basic plot for depth and haul I realized that I had too many observations to see any obvious changes. I decided from then to make a new plot with the median values of haul and depth for each year and plot those with corresponding tests. I chose the median values because the data was not normally distributed. 
+
+```
+
+```{r}
+
+medianKani <- Kani %>%
+  group_by(year) %>%
+  summarise(haul = median(haul)) 
+
+
+plot(medianKani$year, medianKani$haul)
+
+
+medianKani2 <- Kani %>%
+  group_by(year) %>%
+  summarise(depth = median(bottom_depth))
+
+
+plot(medianKani2$year, medianKani2$depth)
+
+
+shapiro.test(medianKani$haul)
+
+shapiro.test(medianKani2$depth)
+
+
+cormedian <- cor(medianKani$year, medianKani$haul, method = "spearman")
+
+cormedian2 = cor(medianKani2$year, medianKani2$depth, method = "pearson")
+
+cormedian
+
+cormedian2
+
+#After plotting the medians for both I saw what seems to be a moderately strong correlation for haul but a weak/no correlation for depth. With further normality tests I found that the median depth data was normal and that the haul data was not normally distributed. So with a normal dataset that showed little correlation and non normal dataset with obvious correlation I did a regression analysis for both sets to test this and found a correlation of .37 for bottom depth and a correlation of .65 for Haul.
+
+```
+
+```{r}
+
+medianmodel <- lm(haul ~ year, data = medianKani)
+
+medianmodel2 <- lm(depth ~ year, data = medianKani2)
+
+summary(medianmodel)
+
+summary(medianmodel2)
+
+#The results of the regression analysis state that the model for median depth produced a R2 of .117 with a p-value of .013. This means that with statistical significance that 11.7% of the distribution of the variation of data could be explained with the model. Stepping back from this result, I ran the tests on this data as an excercise. Logically the median depth of where these fisherman are catching snowcrab shouldn't have too much variation hence probably why we see a normal distribution. Additionally from a stats lense, the results does not explain enough of the variation in data to meaningfully provide insight as to how the depth of where fisherman are fishing has changed. Though this may be me underestimating the power of 12% . 
+
+
+#The Results of the regression analysis state that the model for median haul over the years produced a R2 of .256 with a p-value of .00027 with a rho of .65. This means that with statistical significance that 25.6% of the data can be explained by the model. Looking at the distribution there appears to be a specific outlier observation for 1979 which may be lowering the correlation. Because of this I decided to run the tests again without this variable. 
+#--------------------------------------------------------------------------------
+
+```
+
+```{r}
+
+
+medianKani3 <- medianKani %>%
+  filter(year != 1979)
+
+
+plot(medianKani3$year, medianKani3$haul)
+
+cormedian3 = cor(medianKani3$year, medianKani3$haul, method = "spearman")
+
+cormedian3
+
+
+medianmodel3 <- lm(haul ~ year, data = medianKani3)
+
+summary(medianmodel3)
+
+
+
+#With the variable removed, the adjusted R2 of the distribution became .58 with a P-value less than .05. This is really important because this means that with this model, that 58% of the variation of the distribution could be explained with the model which is very impactful. Stepping back and looking at this from a simple point of view, We can see the steady rise of snowcrab hauls over the year, and with our model we can predict on a yearly basis mostly where the median amount of snowcrabs hauled will be. As an additional excercise I decided to run a regression for a nonlinear quadratic model using the variable removed tibble: 
+#--------------------------------------------------------------------------------
+```
+
+```{r}
+
+
+# Fit a quadratic model
+quadmodel <- lm(haul ~ year + I(year^2), data = medianKani3)  # Fitting a quadratic model (2nd-degree polynomial)
+
+# View the summary of the model
+summary(quadmodel)
+
+#with a quadratic model I got an R2 of .6689 and a P value less than .05 which is the best fitting model for the data. This is fantastic because this explains ~ 67% of the variation of the data and lets us predict with more precision how the data may look in the future. 
+
+```
+
+## Part 2: Visualize!
+
+Use any visualization tools you like to present your findings. Make several graphs to show patterns in your data as well as the results of your statistical tests. Get creative with colors and styles. **Explain why you chose these visualizations, and why the aesthetics are appealing to you!**
+
+
+
+```{r}
+
+# SHOW ALL OF YOUR CODE!!!! 
+
+#For the First 2 charts I decided to make scatter histograms for both the haul and bottom depth of the raw and median sets of observations. I adjusted the opacity of the first chart to show where observations were most frequent and I set the color pallette to R color brewer set 2 for the second chart because I like the brewer set 2 colors for their pastel tones. 
+
+scatter.hist(Kani$haul, Kani$bottom_depth, smooth = TRUE,xlab = "Snowcrab Haul", ylab = "Snowcrab Depth", col = grey(0, .1)  ) 
+
+scatter.hist(medianKani$haul, medianKani2$depth, smooth = TRUE, xlab = "Median Snowcrab Haul", ylab = "Median Snowcrab Depth", col = brewer.pal(n = 8, name = "Set2"))
+
+#For the third and fourth charts which display median Snow crab haul with or without the 1979 observation I kept them unmodified for their color. I didn't have any factors in my observations which would categorize some observations from others so I kept it simple. I know its a little non-creative however with these charts I decided to just stick to the information and provide the results with the charts. 
+
+p_value <- summary(medianmodel)$coefficients[2, 4]
+
+ggplot(medianKani, aes(x = year, y = haul)) +
+  geom_point() +
+  geom_line() +
+  stat_smooth(method = "lm", formula = y ~ x, se = FALSE) + 
+  labs(title = "Median Snowcrab Haul 1975 - 2018", x = "Years", y = "Median Haul") +
+  geom_text(x = max(medianKani$year), y = max(medianKani$haul),
+            label = paste0("Spearman r = ", round(cormedian, 2), ", p = ", format.pval(p_value, digits = 2)),
+            hjust = 1, vjust = 1, fontface = "italic") +
+  scale_color_brewer(palette = "Set1")
+
+
+
+p_value3 <- summary(medianmodel3)$coefficients[2, 4]
+
+ggplot(medianKani3, aes(x = year, y = haul)) +
+  geom_point() +
+  geom_line() +
+  stat_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+  labs(title = "Median Snowcrab Haul 1975 - 2018", xlab = "Years", ylab = "Median Haul") +
+  geom_text(x = min(medianKani3$year), y = max(medianKani3$haul), label = paste0("Spearman r = ", round(cormedian3, 2), ", p = ", format.pval(p_value3, digits = 2)), hjust = 0, vjust = 1, fontface = "italic")
+
+
+#For the final chart I kept it mostly the same, however I did experiment with setting the entire color pallet to brewer set 2. What resulted is the chart which is functionally the same as the prior charts however it has a funny pastel color distribution which repeats the color palette every 8 observations. 
+
+
+x_seq <- seq(min(medianKani2$year), max(medianKani2$year), length.out = 100)
+
+y_predicted <- predict(quadmodel, newdata = data.frame(year = x_seq, year2 = x_seq^2))
+
+p_value4 <- summary(quadmodel)$coefficients[2, 4]
+
+plot(medianKani3$year, medianKani3$haul, col = brewer.pal(n = 8, name = "Set2"), pch = 20, xlab = "Year", ylab = "Haul", main = "Fitted Curved Model")
+lines(x_seq, y_predicted, col = brewer.pal(n = 8, name = "Set3"), lwd = 2)
+text(x = min(medianKani3$year), y = max(medianKani3$haul), labels = paste("p-value =", round(p_value4, 4), ",  r = ~.8,    R2 = .6689"), pos = 4)
+
+
+```
+
+## Part 3: Data management!
+
+Use the tools we learned in class to manipulate the data in an interesting manner. Please create a new column combining data in your dataset. Or subset the data, or do ANYTHING YOU LIKE! **The only condition, explain how and why you are manipulating the data** Try to answer a new question like we did in class. Execute your freedom, you can remove NAs, select only certain values, anything at all but make sure to try several tasks so you can show off your skills and I can see what you learned. 
+
+
+```{r}
+
+# SHOW ALL OF YOUR CODE TO COMPLETE THE MISSION!!!!
+
+#Througout the first section I had to manipulate my data, below is a copy of the text In my prior code which accomplishes this. Through these sections I chose to group my data by the year and create a new haul value based on the median of the haul data. I did this to make approaching the 18,000 observed data points more approachable for regression analysis. I used the dplyr pipe function with the group_by function. I also used the filter function to create a new tibble by removing the observed outlier observation. 
+
+
+medianKani <- Kani %>%
+  group_by(year) %>%
+  summarise(haul = median(haul)) 
+
+
+medianKani2 <- Kani %>%
+  group_by(year) %>%
+  summarise(depth = median(bottom_depth))
+
+
+medianKani3 <- medianKani %>%
+  filter(year != 1979)
+
+#An additional thing I thought would be cool was it I checked out/looked at what happened during the outlier observation that happened during 1979. To do this I subsetted the that year from the original dataframe and made a density plot. What we see is obvious bimodal distributions with a clear majority towards larger hauls. I thought this was cool as it shows a unique distribution showing how that year was specifically bountiful for about 2/3 of the distribution. 
+
+Kani1979 <- subset(Kani, year == "1979")
+
+ggdensity(Kani1979, x = "haul", title = "Density Plot of 1979 Snowcrab Haul")
+```
+
+
+## Part 4: The end! 
+
+Make a dashboard! Take the data and create a dashboard. You will have to make a new file for this, so be sure to make a new markdown and submit it with your other files through laulima. 
+
+You can explain why you created your dashboard in the manner you chose below:
+
+

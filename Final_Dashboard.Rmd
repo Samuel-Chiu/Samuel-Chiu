@@ -1,0 +1,705 @@
+---
+title: "Snowcrab Dashboard" 
+Author: "Samuel Chiu" 
+output: 
+  flexdashboard::flex_dashboard:
+    source_code: embed
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(dplyr)
+library(plotly)
+library(RColorBrewer)
+library(ggplot2)
+library(ggthemes) 
+library(ggpubr)
+library(rcompanion)
+library(multcompView)
+library(psych)
+library(rstatix)
+library(patchwork)
+library(stats)
+library(agricolae)
+library(car)
+```
+
+```{r include=FALSE}
+
+data <- read.csv("mfsnowcrab.csv")
+
+
+Kani = read.csv("mfsnowcrab.csv")
+
+medianKani <- Kani %>%
+  group_by(year) %>%
+  summarise(haul = median(haul)) 
+
+data2 <- medianKani
+
+
+
+
+medianKani2 <- Kani %>%
+  group_by(year) %>%
+  summarise(depth = median(bottom_depth))
+
+data3 <- medianKani2
+
+
+
+
+medianKani3 <- medianKani %>%
+  filter(year != 1979)
+
+data4 <- medianKani3
+
+
+
+
+data5 <- merge(data2, data3)
+
+data6 <- data5 %>%
+  filter(year != 1979)
+
+
+#This section is a little messy however I remembered the merge function during the regression pt 2 section... Lessons for later were learned here. 
+
+
+
+
+
+Datasets = c(data, data2, data3, data4)
+
+new_names <- c("Unmodified", "Median Haul", "Median Depth", "Median Haul Without 1979")
+
+names(Datasets) <- new_names
+
+
+
+
+Categorical.Variables = c("sex", "year")
+
+Numeric.Variables = c("haul", "bottom_depth", "surface_temperature", "bottom_temperature") 
+
+#sample: 
+
+selectInput("categorical_variable", label = "Select Categorical Variable:", choices = Categorical.Variables)
+
+selectInput("numeric_variable", label = "Select Numeric Variable:", choices = Numeric.Variables)
+
+
+
+
+
+Independent.Variable = c("year", "bottom_depth", "surface_temperature", "bottom_temperature", "cpue", "haul")
+
+Dependent.Variable = c("haul", "bottom_depth", "surface_temperature", "Bottom_temperature", "cpue")
+
+
+Independent.Variable2 = c("year", "haul")
+
+Dependent.Variable2 = c("haul", "bottom_depth")
+
+#sample: 
+
+selectInput("Independent_Variable", label = "Select Independent Variable:", choices = Independent.Variable)
+
+selectInput("Dependent_Variable", label = "Select Dependent Variable:", choices = Dependent.Variable)
+
+
+
+
+
+years.var <- c(1975:2018)
+
+selectInput("Years", label = "Select the Year:", choices = years.var)
+
+
+```
+
+Data Exploration Process {.storyboard}
+===================================================================================================
+
+### The Data
+
+```{r data}
+
+
+str(Kani)
+
+```
+
+***
+For my final project I chose to use geospatial snowcrab Data collected by NOAA in the Bering sea of Alaska. It has 11 Varaibles as listed below. Through my project I chose to really explore year, haul, and bottom depth and I will show my workflow and process for exploring these variables through this page of the dashbaord.  
+
+### The Question and Normality
+
+```{r}
+
+shapiro_test_by_year_depth <- function(Kani, year, bottom_depth) {
+  Kani %>%
+    group_by({{ year }}) %>%
+    summarise(shapiro_p_value = shapiro.test({{ bottom_depth }})$p.value)}
+
+
+shapiro_test_by_year_haul <- function(Kani, year, haul) {
+  Kani %>%
+    group_by({{ year }}) %>%
+    summarise(shapiro_p_value = shapiro.test({{ haul }})$p.value)}
+
+
+
+Kani %>%
+  shapiro_test_by_year_haul(year, haul)
+
+
+Kani%>%
+  shapiro_test_by_year_depth(year, bottom_depth)
+
+
+
+
+```
+
+***
+The two main questions I had when exploring this data were, "is there a significant difference in haul between the years?" and, "is there a relationship between haul and depth?" For this question I had to first determine if my data met parametric standards of normality. For this I subjected the variables to first visual checks observable in the normality tab of the dashboard and then the shapiro wilkes test present here. 
+
+
+The two outputs for the Shapiro Wilkes tests show the normality of haul values per year (on the top chart) and the normality of depth values per year (on the bottom chart). 
+
+### Kruskal Wallis Of Haul
+
+```{r, include = FALSE}
+
+KaniKruskalhaul <- kruskal.test(haul ~ year, data = Kani)
+
+pw.haul_groups <- kruskal(Kani$haul, Kani$year, console = TRUE)
+
+
+
+```
+
+```{r}
+KaniKruskalhaul
+
+pw.haul_groups$groups
+```
+      
+
+
+*** 
+Here we have the results of running a Kruskal Wallis test on Haul by year. The Null hypothesis is that there will be no change in the haul between the years with the alternative being that there is change. 
+
+
+Obviously the P-value shows that there is statistically significant difference between the values in the years. Unfortunetly when looking at the letter groups there are just too many letter groups. 
+
+### Kruskal Wallis of Depth (because why not)
+
+```{r, include = FALSE}
+
+
+KaniKruskalDepth <- kruskal.test(bottom_depth ~ year, data = Kani)
+
+pw.depth_groups <- kruskal(Kani$bottom_depth, Kani$year, console = TRUE)
+
+```
+
+```{r}
+KaniKruskalDepth
+
+pw.depth_groups$groups
+
+
+```
+
+
+*** 
+I additionally included a Kruskal Wallis ANOVA of Depth because why not although its not part of the target question. As we see we recieve similar results to the Kruskal Wallis of haul. 
+
+### Raw Correlation Analysis
+
+```{r}
+
+cordepth.haul = cor.test(Kani$bottom_depth, Kani$haul, method = "spearman")
+
+cordepth.haul
+```
+
+
+*** 
+Running the spearman correlation test on depth and haul provides a rho of .42 with a significant p-value. This indicated that there is a moderate/weak correlation between the two variables. looking at the rough scatterplots (on the regression tab) I realize that I want to manipulate my data in order to have a better time moving forward with correlation analysis as there are frankly too many observations for this excercise of stats and coding. 
+
+### Manipulating Data 
+
+```{r}
+
+
+knitr::include_graphics("Manipulations Frame.PNG", dpi = 10)
+
+
+
+```
+
+
+*** 
+
+I decided that I wanted to take the median haul and depth value of every year and make seperate Tibbles. Those tibbles are illustrated left.  
+
+
+### Correlation Analysis Pt 2 
+
+```{r}
+
+
+shapiro.test(medianKani$haul)
+
+shapiro.test(medianKani2$depth)
+
+
+cormedian <- cor(medianKani$year, medianKani$haul, method = "spearman")
+
+cormedian2 = cor(medianKani2$year, medianKani2$depth, method = "pearson")
+
+cormedian
+
+cormedian2
+
+```
+
+
+***
+
+After plotting the medians for both I saw what seems to be a moderately strong correlation for haul but a weak/no correlation for depth. With further normality tests I found that the median depth data was normal and that the haul data was not normally distributed. So with a normal dataset that showed little correlation and non normal dataset with obvious correlation I decided to proceed with a regression analysis for both sets to test this and found a correlation of .37 for bottom depth and a correlation of .65 for Haul. 
+
+You can see the correlation analysis I did on the Regression pt 2 tab and also look at alternative results for the data with different manipulations. One of the most significant manipulations was with the observation for 1979. This Observation for haul was a noticeable outlier compared to the rest of the data. Because of this I made it an option to remove the 1979 observation and conduct linear regression analysis. 
+
+
+
+### Non-Linear regression & results
+
+``` {r}
+
+
+knitr::include_graphics("non-linear regression.PNG", dpi = 10)
+
+
+
+```
+
+*** 
+
+Seeing a potential curve in the Data I decided to additionally plot a non-linear Gaussian model on my data and found a statistically significant correlation. It also had the highest R2 value out of all of the tests I conducted explaining ~ 67% of the variability in the data. This is cool and could suggest that the trend of snowcrab hauls may be on the downtrend. This is predictive conjecture for the sake of the exercise but is quite interesting and could be supported by further results in the future. 
+
+### Thanks and Recognitions
+
+I'd like to say thank you for reading through this! 
+
+I'd like to recognize that I found this Dataset on Kaggle and it was originally posted by The Resource Assessment and Conservation Engineering Division (RACE) of the Alaska Fisheries Science Center (AFSC). 
+
+The link for the dataset is: 
+
+https://www.kaggle.com/datasets/mattop/snowcrab
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Normality 
+===================================================================================================
+
+
+row {.sidebar data-width=200}
+----------------------------------------------------------------------------------------------------
+```{r}
+
+selectInput("numeric_variable", label = "Select Numeric Variable:", choices = Numeric.Variables)
+
+
+```
+
+Row
+--------------------------------------------------------------------------------------------------
+### Histrogram
+
+```{r}
+
+
+renderPlotly({
+   plot_ly(data,
+              x = ~data[[input$numeric_variable]],
+              color = data$sex,
+              type = "histogram") %>%
+  layout(title = "",
+         xaxis = list(title = "" ,
+                      zeroline = FALSE)) 
+  
+})
+
+```
+
+Row
+--------------------------------------------------------------------------------------------------------------------------
+
+### QQ Plot
+
+```{r}
+renderPlotly({
+  qqplot <- ggplot(data, aes(sample = data[[input$numeric_variable]])) +
+    stat_qq() +
+    stat_qq_line()
+  
+  ggplotly(qqplot)
+})
+```
+
+
+### Density Plot
+
+```{r}
+
+renderPlotly({
+  density_plot <- ggplot(data, aes(x = data[[input$numeric_variable]])) +
+    geom_density()
+
+  ggplotly(density_plot)
+})
+
+```
+
+
+
+
+
+Regression
+===============================================================================================
+
+
+Column {.sidebar data-width=200}
+-----------------------------------------------------------------------
+
+```{r}
+
+
+selectInput("Independent_Variable", label = "Select Independent Variable:", choices = Independent.Variable)
+
+selectInput("Dependent_Variable", label = "Select Dependent Variable:", choices = Dependent.Variable)
+
+```
+
+
+Column {data-width=800}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+renderPlotly({
+  # Create a scatter plot using plotly based on Shiny inputs
+  scatter_plot <- plot_ly(data, x = ~data[[input$Independent_Variable]], y = ~data[[input$Dependent_Variable]], type = "scatter", mode = "markers")
+
+  # Add scatter plot markers
+  scatter_plot <- scatter_plot %>% add_markers()
+
+  # Perform linear regression
+  lm_model <- lm(data[[input$Dependent_Variable]] ~ data[[input$Independent_Variable]], data = data)
+
+  # Add regression line
+  scatter_plot <- scatter_plot %>% add_lines(x = data[[input$Independent_Variable]], y = predict(lm_model), line = list(color = 'red'))
+
+   # Extract p-value, r, and r^2 from the linear model
+  p_value <- summary(lm_model)$coef[2, 4]  # Extract p-value
+  r <- cor(data[[input$Dependent_Variable]], data[[input$Independent_Variable]])  # Calculate correlation coefficient (r)
+  r_squared <- summary(lm_model)$r.squared  # Extract r-squared value
+
+  # Display p-value, r, and r^2 as a text annotation on the plot
+  scatter_plot <- scatter_plot %>% layout(
+    annotations = list(
+      x = max(data[[input$Independent_Variable]]),
+      y = max(data[[input$Dependent_Variable]]),
+      text = paste("p-value =", round(p_value, 4), "<br>r =", round(r, 4), "<br>R2 =", round(r_squared, 4)),
+      showarrow = FALSE,
+      xref = "x",
+      yref = "y"
+    )
+  )
+  
+  
+  # Return the interactive plot
+  scatter_plot
+})
+
+
+
+
+```
+
+
+
+
+
+Regression Pt 2
+===============================================================================================
+
+
+Column {.sidebar data-width=200}
+-----------------------------------------------------------------------
+
+```{r}
+
+selectInput("df", label = "Select Data Mutation:", choices = c("Median Haul", "Median Depth", "Median Haul Without 1979", "Median Haul vs. Median Depth", "Median Haul vs. Median Depth Without 1979"))
+
+
+```
+
+
+Column {data-width=800}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+
+renderPlotly({
+  if (input$df == "Median Haul") {
+    scatter_plot <- plot_ly(data2, x = ~year, y = ~haul, type = "scatter", mode = "markers")
+
+      # Add scatter plot markers
+      scatter_plot <- scatter_plot %>% add_markers()
+
+      # Perform linear regression
+      lm_model <- lm(haul ~ year, data = data2)
+
+      # Add regression line
+      scatter_plot <- scatter_plot %>% add_lines(x = ~year, y = ~predict(lm_model), line = list(color = 'red'))
+
+      # Extract p-value, r, and r^2 from the linear model
+      p_value <- summary(lm_model)$coef[2, 4]  # Extract p-value
+      r <- cor(data2$year, data2$haul)  # Calculate correlation coefficient (r)
+      r_squared <- summary(lm_model)$r.squared  # Extract r-squared value
+
+      # Display p-value, r, and r^2 as a text annotation on the plot
+      scatter_plot <- scatter_plot %>% layout(
+        annotations = list(
+          x = max(data2$year),
+          y = max(data2$haul),
+          text = paste("p-value =", round(p_value, 4), "<br>r =", round(r, 4), "<br>R2 =", round(r_squared, 4)),
+          showarrow = FALSE,
+          xref = "x",
+          yref = "y"
+        )
+      )
+
+      return(scatter_plot)
+  } else if (input$df == "Median Depth") {
+    
+  
+  scatter_plot <- plot_ly(data3, x = ~year, y = ~depth, type = "scatter", mode = "markers")
+
+      # Add scatter plot markers
+      scatter_plot <- scatter_plot %>% add_markers()
+
+      # Perform linear regression
+      lm_model <- lm(depth ~ year, data = data3)
+
+      # Add regression line
+      scatter_plot <- scatter_plot %>% add_lines(x = ~year, y = ~predict(lm_model), line = list(color = 'red'))
+
+      # Extract p-value, r, and r^2 from the linear model
+      p_value <- summary(lm_model)$coef[2, 4]  # Extract p-value
+      r <- cor(data3$year, data3$depth)  # Calculate correlation coefficient (r)
+      r_squared <- summary(lm_model)$r.squared  # Extract r-squared value
+
+      # Display p-value, r, and r^2 as a text annotation on the plot
+      scatter_plot <- scatter_plot %>% layout(
+        annotations = list(
+          x = max(data3$year),
+          y = max(data3$depth),
+          text = paste("p-value =", round(p_value, 4), "<br>r =", round(r, 4), "<br>R2 =", round(r_squared, 4)),
+          showarrow = FALSE,
+          xref = "x",
+          yref = "y"
+        )
+      )
+
+      return(scatter_plot)
+  
+
+  } else if (input$df == "Median Haul Without 1979") {
+  
+  scatter_plot <- plot_ly(data4, x = ~year, y = ~haul, type = "scatter", mode = "markers")
+
+      # Add scatter plot markers
+      scatter_plot <- scatter_plot %>% add_markers()
+
+      # Perform linear regression
+      lm_model <- lm(haul ~ year, data = data4)
+
+      # Add regression line
+      scatter_plot <- scatter_plot %>% add_lines(x = ~year, y = ~predict(lm_model), line = list(color = 'red'))
+
+      # Extract p-value, r, and r^2 from the linear model
+      p_value <- summary(lm_model)$coef[2, 4]  # Extract p-value
+      r <- cor(data4$year, data4$haul)  # Calculate correlation coefficient (r)
+      r_squared <- summary(lm_model)$r.squared  # Extract r-squared value
+
+      # Display p-value, r, and r^2 as a text annotation on the plot
+      scatter_plot <- scatter_plot %>% layout(
+        annotations = list(
+          x = max(data4$year),
+          y = max(data4$haul),
+          text = paste("p-value =", round(p_value, 4), "<br>r =", round(r, 4), "<br>R2 =", round(r_squared, 4)),
+          showarrow = FALSE,
+          xref = "x",
+          yref = "y"
+        )
+      )
+
+      return(scatter_plot)
+     
+  } else if (input$df == "Median Haul vs. Median Depth") {
+     
+  scatter_plot <- plot_ly(data5, x = ~haul, y = ~depth, type = "scatter", mode = "markers")
+
+      # Add scatter plot markers
+      scatter_plot <- scatter_plot %>% add_markers()
+
+      # Perform linear regression
+      lm_model <- lm(depth ~ haul, data = data5)
+
+      # Add regression line
+      scatter_plot <- scatter_plot %>% add_lines(x = ~haul, y = ~predict(lm_model), line = list(color = 'red'))
+
+      # Extract p-value, r, and r^2 from the linear model
+      p_value <- summary(lm_model)$coef[2, 4]  # Extract p-value
+      r <- cor(data5$haul, data5$depth)  # Calculate correlation coefficient (r)
+      r_squared <- summary(lm_model)$r.squared  # Extract r-squared value
+
+      # Display p-value, r, and r^2 as a text annotation on the plot
+      scatter_plot <- scatter_plot %>% layout(
+        annotations = list(
+          x = max(data5$haul),
+          y = max(data5$depth),
+          text = paste("p-value =", round(p_value, 4), "<br>r =", round(r, 4), "<br>R2 =", round(r_squared, 4)),
+          showarrow = FALSE,
+          xref = "x",
+          yref = "y"
+        )
+      )
+
+      return(scatter_plot)
+    
+      
+  } else if (input$df == "Median Haul vs. Median Depth Without 1979") {
+     
+  scatter_plot <- plot_ly(data6, x = ~haul, y = ~depth, type = "scatter", mode = "markers")
+
+      # Add scatter plot markers
+      scatter_plot <- scatter_plot %>% add_markers()
+
+      # Perform linear regression
+      lm_model <- lm(depth ~ haul, data = data6)
+
+      # Add regression line
+      scatter_plot <- scatter_plot %>% add_lines(x = ~haul, y = ~predict(lm_model), line = list(color = 'red'))
+
+      # Extract p-value, r, and r^2 from the linear model
+      p_value <- summary(lm_model)$coef[2, 4]  # Extract p-value
+      r <- cor(data6$haul, data6$depth)  # Calculate correlation coefficient (r)
+      r_squared <- summary(lm_model)$r.squared  # Extract r-squared value
+
+      # Display p-value, r, and r^2 as a text annotation on the plot
+      scatter_plot <- scatter_plot %>% layout(
+        annotations = list(
+          x = max(data6$haul),
+          y = max(data6$depth),
+          text = paste("p-value =", round(p_value, 4), "<br>r =", round(r, 4), "<br>R2 =", round(r_squared, 4)),
+          showarrow = FALSE,
+          xref = "x",
+          yref = "y"
+        )
+      )
+
+      return(scatter_plot)
+          
+     } else {
+    # Handle the case when input$df doesn't match any condition
+    return(NULL)
+  }
+})
+  
+
+  # 
+  # } else if (input$df == "Median Haul vs. Median Depth") {
+
+```
+
+Density Plots Through the Years
+==========================================================================
+
+Column {.sidebar data-width=200}
+----------------------------------------------------------------------
+
+```{r year input}
+
+
+selectInput("Years", label = "Select the Year:", choices = years.var)
+
+```
+
+
+Column {data-width=800}
+-------------------------------------------------------------------------
+
+### Density plot
+
+```{r Density Plot}
+
+renderPlotly({
+  # Filter data based on the selected year
+  filtered_data <- data[data$year == input$Years, ]
+  
+  # Create density plot for haul variable for the selected year
+  density_plot2 <- ggplot(filtered_data, aes(x = haul)) +
+    geom_density()
+  
+  ggplotly(density_plot2)
+})
+```
+
+
+
+
+
+Something Extra
+===========================================================================
+Through working with this data at one point I decided to make a map based on haul and the latitude and longitude data that was provided. Unfortunately to make the map you require a Stadia licence which I am currently unwilling to pay for as a college student. So here is an image of the map which I made using the free trial with Stadia which has a gradient based on haul and the number of hauls from a specific location. Roughly the darker the spot on the map the more hauls from that location. 
+
+I thought it would be really cool to make a slider or input for the years which would only show the haul locations including those years. It is definitely possible and it would not be hard utilizing shiny. 
+
+<br>
+
+```{r display Stadia Map, out.width = "50%", echo=FALSE}
+
+knitr::include_graphics("Map Code.PNG", dpi = 10)
+
+
+knitr::include_graphics("Opaque Map.PNG", dpi = 10)
+
+
+
+
+```
