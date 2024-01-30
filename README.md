@@ -1,10 +1,10 @@
 - 👋 Hi, I’m @Samuel-Chiu
-- 👀 I’m interested in: Cool Science involving the ocean! 
-- 🌱 I’m currently learning Marine Science at the University of Hawaii at Hilo 
-- 💞️ I’m looking to collaborate on Statistics and Projects in R. 
-- 📫 How to reach me: You can reach me through github or my email samueldc@hawaii.edu. 
-- 😄 Pronouns: He/Him 
-- ⚡ Fun fact: I love to Scuba Dive. 
+
+  Here is some information about this Data set and the context in which I manipulated it:
+
+1. The Data set is from Kaggle and is the mfsnowcrab.csv file. 
+2. I did this project as a final exam for my CS 171: Fundamentals of R class.
+3. The way in which I manipulated the data in this context is explained through the dashboard that accompanies rmd file. 
 
 <!---
 Samuel-Chiu/Samuel-Chiu is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
