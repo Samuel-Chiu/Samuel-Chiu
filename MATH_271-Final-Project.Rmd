@@ -1,0 +1,809 @@
+---
+title: "Math 271 Stats Final"
+author: "Samuel Chiu"
+date: "4/28/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(FactoMineR)
+library(factoextra)
+library(ade4)
+library(ExPosition)
+library(ggplot2)
+library(tidyverse)
+library(magrittr)
+library(knitr)
+library(moderndive)
+library(plotly)
+library(lme4)
+library(GGally)
+library(scatterplot3d)
+library(skimr)
+library(ISLR)
+library(tidyr)
+library(readr)
+library(purrr)
+library(tibble)
+library(stringr)
+library(forcats)
+library(infer)
+library(psych)
+library(vegan)
+library(dplyr)
+library(RColorBrewer)
+library(shiny)
+library(ggpubr)
+
+
+```
+
+#  {.tabset .tabset-pills}
+
+## Welcome to Samuel Chiu's Math 271 Final Project!
+
+The data set used today comes from kaggle titled "Customer Personality Analysis" with the specific link being <https://www.kaggle.com/datasets/imakash3011/customer-personality-analysis>. The Data set focuses on consumer information that a company collected of its customers tracking the purchase information on store products, and customer information such as relationship status, income, and education level in addition to that specific customers website and store traffic. I think the prevalence of this data is a little creepy, however it is out there and this is an example of the kinds of stats you can run on your consumer base with this kind of data.
+
+## Basic Data Formatting
+
+Data Cleaning!!!
+
+So my original DataFrame looked like this and was unusable at first:
+
+```{r pic 1, out.width = "100%", echo=FALSE}
+knitr::include_graphics("RAWCSV.PNG", dpi = 10)
+```
+
+Because my data was in the form of strings, I needed to split them and rebind them into rows of observations. I accomplished this with the following code.
+
+```{r}
+
+raw_market <- read.csv("marketing_campaign.csv")
+
+process_observation <- function(observation) {
+  data_vector <- strsplit(observation, "\t")[[1]]
+  id <- as.integer(data_vector[1])
+  birthyear <- as.integer(data_vector[2])
+  education <- as.factor(data_vector[3])
+  marital_status <- as.factor(data_vector[4])
+  income <- as.numeric(data_vector[5])
+  kids <- as.numeric(data_vector[6])
+  teens <- as.numeric(data_vector[7])
+  dt_customer <- as.Date(data_vector[8], format = "%Y-%m-%d")  # Adjust format as per your data
+  recency <- as.integer(data_vector[9])
+  mntWines <- as.numeric(data_vector[10])
+  mntFruits <- as.numeric(data_vector[11])
+  mntMeatProducts <- as.numeric(data_vector[12])
+  mntFishProducts <- as.numeric(data_vector[13])
+  mntSweetProducts <- as.numeric(data_vector[14])
+  mntGoldProds <- as.numeric(data_vector[15])
+  numDealsPurchases <- as.numeric(data_vector[16])
+  numWebPurchases <- as.numeric(data_vector[17])
+  numCatalogPurchases <- as.numeric(data_vector[18])
+  numStorePurchases <- as.numeric(data_vector[19])
+  numWebVisitsMonth <- as.numeric(data_vector[20])
+  acceptedCmp3 <- as.integer(data_vector[21])
+  acceptedCmp4 <- as.integer(data_vector[22])
+  acceptedCmp5 <- as.integer(data_vector[23])
+  acceptedCmp1 <- as.integer(data_vector[24])
+  acceptedCmp2 <- as.integer(data_vector[25])
+  complain <- as.integer(data_vector[26])
+  z_cost_contact <- as.integer(data_vector[27])
+  z_revenue <- as.integer(data_vector[28])
+  response <- as.integer(data_vector[29])
+  
+  return(list(ID = id, 
+              Year_Birth = birthyear, 
+              Education = education, 
+              Marital_Status = marital_status, 
+              Income = income, 
+              Kidhome = kids, 
+              Teenhome = teens, 
+              Dt_Customer = dt_customer, 
+              Recency = recency, 
+              MntWines = mntWines,
+              MntFruits = mntFruits,
+              MntMeatProducts = mntMeatProducts,
+              MntFishProducts = mntFishProducts,
+              MntSweetProducts = mntSweetProducts,
+              MntGoldProds = mntGoldProds,
+              NumDealsPurchases = numDealsPurchases,
+              NumWebPurchases = numWebPurchases,
+              NumCatalogPurchases = numCatalogPurchases,
+              NumStorePurchases = numStorePurchases,
+              NumWebVisitsMonth = numWebVisitsMonth,
+              AcceptedCmp3 = acceptedCmp3,
+              AcceptedCmp4 = acceptedCmp4,
+              AcceptedCmp5 = acceptedCmp5,
+              AcceptedCmp1 = acceptedCmp1,
+              AcceptedCmp2 = acceptedCmp2,
+              Complain = complain,
+              Z_CostContact = z_cost_contact,
+              Z_Revenue = z_revenue,
+              Response = response))
+}
+
+processed_data <- apply(raw_market, 1, process_observation)
+
+market <- as.data.frame(bind_rows(processed_data))
+
+market <- market%>%
+  na.omit()
+  
+
+
+```
+
+The data frame looks like this:
+
+```{r pic 2, out.width = "100%", echo=FALSE}
+knitr::include_graphics("CLEANCSV.PNG", dpi = 10)
+```
+
+## The Questions pt 1:
+
+Looking at this data frame I had a couple Initial questions that I wanted to answer:
+
+1.  What is the mean income and mean amount of purchased wine for college educated shoppers at this store?
+
+2.  How do the variables relate to each other and how does this compare between shoppers of different college education levels and of different marital statuses?
+
+## Some Data Manipulation
+
+```{r}
+
+edu <- market %>%
+  filter(Education == "PhD" | Education == "Graduation" | Education == "Master") %>%
+  select(-Complain, -Response, -ID, -AcceptedCmp3, -AcceptedCmp4, -AcceptedCmp5, -AcceptedCmp1, -AcceptedCmp2, -Dt_Customer, -Recency, -Z_CostContact, -Z_Revenue, -Marital_Status, -Year_Birth, -Kidhome, -Teenhome) %>%
+  na.omit()
+
+
+rel <- market %>%
+  filter(Marital_Status == "Single" | Marital_Status == "Together" | Marital_Status == "Divorced" | Marital_Status == "Married" | Marital_Status == "Widow") %>%
+  select(-Complain, -Response, -ID, -AcceptedCmp3, -AcceptedCmp4, -AcceptedCmp5, -AcceptedCmp1, -AcceptedCmp2, -Dt_Customer, -Recency, -Z_CostContact, -Z_Revenue, -Education, -Year_Birth, -Kidhome, -Teenhome) %>%
+  na.omit()
+
+```
+
+I did two main sets of data manipulation, I first selected for college education being gradated, having a masters, or having a PhD. Secondly, I selected for Marital statuses that where single, together, married, divorced, or widowed. There were two other education statuses being basic and 2 n cycle which I removed because they didn't fit my question based on college education. I removed three absurd marital status factors being: Alone (basically single), Absurd, and YOLO. For both sets I removed specific variables that were identifiable variables or yes or no answers.
+
+## Question 1
+
+To address question 1, I wanted to first see wanted to run some basic descriptive stats to visualize the income distibution and see what the mean income was to set as a baseline to compare to later. This was simple and I did it with the base R hist funcion and the Psych describe function.
+
+#### {.tabset}
+##### Histogram of Income 
+```{r}
+hist(market$Income)
+
+```
+
+
+
+##### Histogram of Amount spent on Wine
+```{r}
+
+hist(market$MntWines)
+
+
+```
+
+
+##### Describe function 
+```{r}
+describe(market)
+
+```
+
+####
+
+Obviously the data isn't normally distributed and with a describe function, the mean income for the dataframe is \~ 53,597 and mean amount of wine purchased is \~ 324. To answer my question I decided to go further and bootstrap.
+
+
+### Bootstraping
+
+I bootstrapped the entire data-frame using infer for both income and amount of wine purchased, and following the bootstrap I produced histograms with 95% confidence intervals to accompany them.
+
+#### {.tabset}
+
+##### Bootstrap of Income
+
+```{r}
+
+bootstrap_income <- edu %>% 
+  specify(response = Income) %>% 
+  generate(reps = 1000) %>% 
+  calculate(stat = "mean")
+
+percentile_ci_income <- bootstrap_income %>%
+  get_confidence_interval(level = 0.95, type = "percentile")
+
+percentile_ci_income
+
+visualize(bootstrap_income) +
+  shade_confidence_interval(endpoints = percentile_ci_income)
+
+
+```
+
+##### Bootstrap of Wine Purchased
+
+```{r}
+
+bootstrap_wine <- edu %>% 
+  specify(response = MntWines) %>% 
+  generate(reps = 1000) %>% 
+  calculate(stat = "mean")
+
+percentile_ci_wine <- bootstrap_wine %>%
+  get_confidence_interval(level = 0.95, type = "percentile")
+
+percentile_ci_wine
+
+visualize(bootstrap_wine) +
+  shade_confidence_interval(endpoints = percentile_ci_wine)
+
+
+
+```
+
+####
+
+
+Looking at these distributions, you can see that we can be 95% confident that the true mean for income lies between \~ 52,600 and \~ 54,800, and the true mean for amount spent on wine lies between \~308 and \~ 340 for wine. Wow thats a lot spent on wine though much less than the maximum of 1,493.
+
+## Question 2
+
+To answer the 2nd question I'm going to start by conducting some Multivariate Analysis of the two different sets based on education and relationship status.
+
+To start it off, I did a basic ggpair for Education and Relationship status with coloration for respective categorical variables.
+
+#### {.tabset}
+##### Education GGPair
+
+```{r}
+
+
+p <- ggpairs(edu, aes(color = Education))+ theme_bw()
+# Change color manually.
+# Loop through each plot changing relevant scales
+for(i in 1:p$nrow) {
+  for(j in 1:p$ncol){
+    p[i,j] <- p[i,j] +
+        scale_fill_manual(values=c("#00AFBB", "#E7B800", "#FC4E07")) +
+        scale_color_manual(values=c("#00AFBB", "#E7B800", "#FC4E07"))
+  }
+}
+p
+
+```
+
+##### Marital Status GGPair
+
+```{r}
+
+t <- ggpairs(rel, aes(color = Marital_Status)) + theme_bw()
+
+# Define color values for 5 variables
+colors <- c("#00AFBB", "#E7B800", "#FC4E07", "#6E40AA", "#009E73")
+
+# Loop through each plot changing relevant scales
+for(i in 1:t$nrow) {
+  for(j in 1:t$ncol){
+    t[i,j] <- t[i,j] +
+        scale_fill_manual(values = colors) +
+        scale_color_manual(values = colors)
+  }
+}
+
+t
+
+```
+
+
+### PCA Biplots 
+
+Seeing as how the GGPair's have so many variables and observations, these are hard to read and make deductions from. To pivot around this I decided to make some PCA Biplots in order to visualize the distributions of the points in order to see if there are any obvious groupings differentiating the categories.
+
+#### {.tabset}
+
+##### Education PCA Biplot
+```{r}
+edu_data <- edu[, -1]
+res.pca <- prcomp(edu_data, scale = TRUE)
+fviz_pca_biplot(res.pca, col.ind = edu$Education,
+                palette = "jco", alpha =.3,
+                geom = "point",  pointshape = 21,
+                addEllipses = TRUE, label = "var",
+                col.var = "black", repel = TRUE,
+                legend.title = "Education")
+```
+
+
+##### Relationship status
+```{r}
+rel_data <-rel[, -1]
+res.pca2 <- prcomp(rel_data, scale = TRUE)
+fviz_pca_biplot(res.pca2, col.ind = rel$Marital_Status,
+                palette = "brewer", alpha = .3, 
+                geom = "point",  pointshape = 21,
+                addEllipses = TRUE, label = "var",
+                col.var = "black", repel = TRUE,
+                legend.title = "Marital Status")
+
+
+
+```
+
+Looking at the Biplots, there are no obvious differences among the groups, additionally both charts seem to be very similar which means to me that I have to dig deeper into the data to identify potential groupings and what is causing the distribution of the data.
+
+### Eigen Values, Skree plots, Cos2, and Contribution Exploration
+
+To first understand the dimensions of the plot I got the eigen values for both education and relationship:
+
+#### {.tabset}
+
+##### Eigen Values Education
+```{r}
+
+
+edu.pca <-PCA(edu[,-1], graph = FALSE) 
+
+eig.val.edu <- get_eigenvalue(edu.pca)
+
+eig.val.edu
+
+```
+
+
+##### Eigen Values Relationships
+```{r}
+
+
+rel.pca <-PCA(rel[,-1], graph = FALSE) 
+
+eig.val.rel <- get_eigenvalue(rel.pca)
+
+eig.val.rel
+```
+
+to Better Visualize the Eigan values I made them into skree plots:
+
+
+##### Skree plot Education
+```{r}
+
+
+fviz_eig(edu.pca, addlabels = TRUE, ylim = c(0, 60))
+```
+
+##### Skree plot relationships
+```{r}
+
+fviz_eig(rel.pca, addlabels = TRUE, ylim = c(0, 60))
+
+```
+
+Following this I made the Cos2 plots for both Education and Relationship status:
+
+##### Cos2 plot for Education
+
+```{r}
+
+fviz_cos2(edu.pca, choice = "var", axes = 1:2)
+
+```
+
+##### Cos2 plot for Relationships
+```{r}
+fviz_cos2(rel.pca, choice = "var", axes = 1:2)
+
+```
+
+And here are the contribution plots for each variable with the expected average contribution per dimenstion:
+
+
+##### Dimension Contribution plots Education
+```{r}
+
+fviz_contrib(edu.pca, choice = "var", axes = 1, top = 12)
+fviz_contrib(edu.pca, choice = "var", axes = 2, top = 12)
+fviz_contrib(edu.pca, choice = "var", axes = 1:2, top = 12)
+```
+
+##### Dimension Contribution plots Relationships
+```{r}
+
+fviz_contrib(rel.pca, choice = "var", axes = 1, top = 12)
+fviz_contrib(rel.pca, choice = "var", axes = 2, top = 12)
+fviz_contrib(rel.pca, choice = "var", axes = 1:2, top = 12)
+
+
+
+
+
+```
+
+Examining the contribution of variables for dimension 1, 2, and the interplay of 1 & 2 among both education and relationships, for both sets it's consistently catalogue taking the highest contribution for dimension 1 followed by amounts of meat products purchased. For dimension 2 its the number of deals followed consistently by number of web purchases and then the number of web visits. With the interplay of of Dimensions 1 & 2 its consistently the number of web purchases followed by the amount of meat products. This final part makes sense as they are both the second highest contributing variable to the respective dimensions 1 & 2 and these match the results of the Cos2 contribution.
+
+### Visualizations of Cos2 and Contribution
+
+#### {.tabset}
+
+##### Viz of Education Cos2
+```{r}
+
+
+fviz_pca_var(edu.pca, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE)
+
+```
+
+##### Viz of Relationships Cos2
+```{r}
+
+fviz_pca_var(rel.pca, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE)
+
+```
+
+
+##### Viz of Education Contribution
+
+```{r}
+
+
+fviz_pca_var(edu.pca, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+
+```
+
+
+##### Viz of Relationships Contribution
+
+
+```{r}
+fviz_pca_var(rel.pca, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+
+
+
+```
+
+## Running an RDA 
+
+
+After diving into the data and attempting to see the interaction between education and relationships with the other variables, I decided to focus further on the relationship between the variables and decided to run a RDA to see the interaction between purchases and demographic information. From this I ran two RDA's to see which of the two groupings predicted the other more. 
+
+### Splitting the Data Frame
+
+I split the data frame through subsetting the original market dataframe. After splitting the data frame I removed any 0's with hellingers method for amount spent, and standardized the demographic information because the data was wildly differen't. 
+
+```{r}
+
+amount = subset(market, select = c(MntWines, MntFruits, MntGoldProds, MntFishProducts, MntMeatProducts, MntSweetProducts))
+
+demo = subset(market, select = c(NumDealsPurchases, NumWebPurchases, NumCatalogPurchases, NumStorePurchases, NumWebVisitsMonth, Income))
+
+amo.hel <- decostand(amount, method = "hellinger")
+
+demo.z <- decostand(demo, method = "standardize")
+
+
+```
+
+
+
+### Amount spent as the predictor variable
+
+### {.tabset}
+
+
+#### Basic RDA
+
+```{r}
+
+amo.rda <- rda(amo.hel ~ ., data = demo.z)
+
+head(summary(amo.rda))
+
+
+```
+
+
+#### R^2 with ANOVA
+```{r}
+
+
+
+RsquareAdj(amo.rda)
+
+anova.cca(amo.rda)
+
+
+```
+
+
+
+#### RDA Plot 
+
+
+```{r}
+
+plot(amo.rda, scaling = 3)
+
+```
+
+
+###
+
+By conducting an RDA, the model I created was only able to explain ~ 12% of the variability in demographic information with amount purchased as the predictor variable. 
+
+### Demographic as the Predictor Variable
+
+### {.tabset}
+      
+#### Basic RDA
+```{r}
+
+demo.amo.rda <- rda(demo.z ~ ., data = amo.hel)
+
+head(summary(demo.amo.rda))
+
+```
+
+
+#### R^2 with ANOVA     
+```{r}
+
+RsquareAdj(demo.amo.rda)
+
+anova.cca(demo.amo.rda)
+
+```
+
+#### RDA Plot 
+
+```{r}
+
+plot(demo.amo.rda, scaling = 3)
+
+```
+
+
+### 
+
+by conducting an RDA, the model I created was able to explain ~ 16.5% of the variability in amounts purchased with demographic information as the predictor variable. 
+
+
+After going through the initial RDA's I wanted to take it a step further. I decided to try an eliminate variables to only have ones that are statistically significant. To do this I ran the RDA through the ordiR2step function from the vegan library. After I made a new RDA with the significant variables and atttached the adjusted R^2, ANOVA, and plot. 
+
+
+### Refined RDA for Amounts spent as Predictor Variable
+
+### {.tabset}
+
+
+#### OrdiR2step function 
+```{r}
+
+fwd.amo <- ordiR2step(rda(amo.hel ~ 1, data = demo.z), 
+               scope = formula(amo.rda),
+               direction = "forward",
+               R2scope = TRUE, 
+               pstep = 1000,
+               trace = FALSE)
+fwd.amo$call
+
+```
+
+
+
+#### R^2 & ANOVA
+```{r}
+
+amo.rda.signif <- rda(amo.hel ~ Income + NumWebVisitsMonth + NumStorePurchases + 
+    NumWebPurchases + NumCatalogPurchases, data = demo.z)
+
+RsquareAdj(amo.rda.signif)
+
+
+anova.cca(amo.rda.signif, step = 1000)
+```
+
+
+#### Plot
+
+```{r}
+
+
+plot(amo.rda.signif, scaling = 3)
+
+
+```
+
+### 
+
+With only statistically significant variables, I was able to explain ~ 11.7% of the variability of the distribution of demographic information with my model. Through conducting the selection for only statistically significant variables, I found that Number of Catalog purchases was not a statistically significant demographic variable in ordinating the data. 
+
+
+### Refined RDA for Demographic as Predictor Variable
+
+### {.tabset}
+
+
+#### OrdiR2step function
+```{r}
+fwd.demo <- ordiR2step(rda(demo.z ~ 1, data = amo.hel), 
+               scope = formula(demo.amo.rda), 
+               direction = "forward",
+               R2scope = TRUE, 
+               pstep = 1000,
+               trace = FALSE)
+
+
+fwd.demo$call
+
+```
+
+#### R^2 & ANOVA
+```{r}
+
+demo.rda.signif <- rda(demo.z ~ MntGoldProds + MntWines + MntSweetProducts + MntMeatProducts + 
+    MntFruits, data = amo.hel)
+
+RsquareAdj(demo.rda.signif)
+
+
+anova.cca(demo.rda.signif, step = 1000)
+
+```
+
+#### Plot
+```{r}
+
+
+plot(demo.rda.signif, scaling = 3)
+
+```
+
+
+
+###
+
+
+With only statistically significant variables, I was able to explain ~ 15.7% of the variability of the distribution of amount purchased information with my model. Through the functions I used, I found that the amount of fish purchased was not statistically significant in ordinating the data. 
+
+
+## Conclusion
+
+I was able to statistically explore this data frame in mutiple ways. First through bootstrapping I was able to find a 95% confidence interval for average income and average amount spent on wine. Secondly, I created PCA biplots and was able to explore the dimensions of the Data that defined why it was distributed the way it was. Finally, I conducted an RDA for demographic information and amount spent to further understand the relationships between the variables and to see if we could predict one from the other. Ultimately, with demographic and amount spent, I wasn't able to find a great model that explained a large amount of the variability in the distribution with the methods I know currently. This result wasn't totally unexpected looking at the PCA Biplots and ultimately this project taught me a lot about Ordination and specifically RDA's. 
+
+
+## Some Cool extra charts I made
+
+
+The first and Extra chart that I made is a violin plot.  
+
+```{r}
+ggplot(data = market, aes(x = Education, y = Income, fill = Education)) +
+  geom_violin() + 
+  geom_boxplot() +
+  labs(title = "Violin plots of Income over different education Levels")
+
+```
+After making this original Violin plot, by looking at it I decided that I needed to remove outliers. I did that below and re-did the violin plot. 
+
+```{r}
+
+Q1 <- quantile(market$Income, 0.25)
+Q3 <- quantile(market$Income, 0.75)
+
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+market_cleaned <- subset(market, Income >= lower_bound & Income <= upper_bound)
+
+ggplot(data = market_cleaned, aes(x = Education, y = Income, fill = Education)) +
+  geom_violin() + 
+  geom_boxplot() +
+  labs(title = "Violin plots of Income over different education Levels pt. 2")
+
+
+
+```
+
+
+
+
+
+The resulting violin plots are quiet interesting. They look the way they do because I did this in ggplot 2. doing it in ggplot resulted in this: 
+
+```{r}
+
+ggviolin(market_cleaned, x = "Education", y = "Income", color = "Education")
+
+
+```
+
+After going through the PCA biplots and RDA I recognized that the amount of Meat products was a very important variable, and so I took at look at it with the amount of Wine sold and colored it by education. 
+
+```{r}
+
+
+evalsplot <- ggplot(market) + aes(x= MntMeatProducts, y=MntWines, color= Education) + 
+  geom_jitter(width=0.5, height=0, alpha=0.5) + geom_smooth()
+
+
+ggplotly(evalsplot) 
+
+
+```
+
+Going past 2D plotting I added a third dimension to Meat and Wine with income and resulted in this chart. 
+
+```{r}
+
+
+plot_ly(market, x=~MntMeatProducts, y=~Income, z=~MntWines, color =~ Education) %>% 
+  add_markers(size=1) 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
