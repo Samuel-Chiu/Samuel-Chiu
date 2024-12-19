@@ -1,12 +1,8 @@
-- 👋 Hi, I’m @Samuel-Chiu
-- 👀 I’m interested in: Cool Science involving the ocean! 
-- 🌱 I’m currently learning Marine Science at the University of Hawaii at Hilo 
-- 💞️ I’m looking to collaborate on Statistics and Projects in R. 
-- 📫 How to reach me: You can reach me through github or my email samueldc@hawaii.edu. 
-- 😄 Pronouns: He/Him 
-- ⚡ Fun fact: I love to Scuba Dive.
+Hello and welcome to this branch of my repository. This project is a reflection of my final course that I took as part of the R portion of the UH Hilo Data Science certificate program. 
 
-- If you are looking to check out some of my work then click on the branches for this respository! There you can find a final project of mine where I had to do a lot of data analysis! 
+The accompanying files are part of a dashboard I created to analyze some data to do some exploratory multivariate analysis. 
+In this branch is the neccesary code and attached CSV's. Thank you!!! 
+
 
 <!---
 Samuel-Chiu/Samuel-Chiu is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
