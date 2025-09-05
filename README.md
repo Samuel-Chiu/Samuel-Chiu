@@ -1,7 +1,7 @@
 - 👋 Hi, I’m @Samuel-Chiu
 - 👀 I’m interested in: Cool Science involving the ocean! 
-- 🌱 I’m currently learning Marine Science at the University of Hawaii at Hilo 
-- 💞️ I’m looking to collaborate on Statistics and Projects in R. 
+- 🌱 I’m currently Double Majoring in Marine Science & Data Science at the University of Hawaii at Hilo 
+- 💞️ I’m looking to collaborate on Statistics and Projects in R & Python. 
 - 📫 How to reach me: You can reach me through github or my email samueldc@hawaii.edu. 
 - 😄 Pronouns: He/Him 
 - ⚡ Fun fact: I love to Scuba Dive.
